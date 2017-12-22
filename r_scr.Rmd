@@ -63,30 +63,31 @@ names(icons) <- types
 map_data_struct <- list(data_irk_with_lic, data_irk_not_lic)
 names(map_data_struct) <- types
 
-
 for (type in types) {
-  
-  icons[[type]] <- awesomeIcons(
+
+    icons[[type]] <- awesomeIcons(
     icon = 'ios-close',
     iconColor = 'black',
     library = 'ion',
     markerColor = icons_colors[[type]]
     )
-
+    
 }
-
 
 l <- leaflet() %>% addTiles()
 for (type in types) {
+  
   icon_type <- icons[[type]]
-  cluster_icon <- sprintf("
+  
+cluster_icon <- sprintf("
           function(cluster) {
              return new L.DivIcon({
                html: '<div style=\"background-color:%s\"><span>' + cluster.getChildCount() + '</div><span>',
                className: 'marker-cluster'
              });
-           }
-  ", cluster_colors[[type]])
+           }", 
+          cluster_colors[[type]])
+  
   l <- l %>% addAwesomeMarkers(data = map_data_struct[[type]],
              lng = ~x, lat = ~y,
              label = ~as.character(paste(name, pi, sep = " :: ")),
@@ -96,7 +97,6 @@ for (type in types) {
              clusterOptions = markerClusterOptions(removeOutsideVisibleBounds = F, iconCreateFunction =
                                       JS(cluster_icon)),
              labelOptions = labelOptions(noHide = F, direction = 'auto'))
-  
 }
 
 l %>%
