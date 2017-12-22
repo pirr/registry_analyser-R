@@ -1,0 +1,116 @@
+---
+title: "R Notebook"
+output: html_notebook
+---
+
+This is an [R Markdown](http://rmarkdown.rstudio.com) Notebook. When you execute code within the notebook, the results appear beneath the code. 
+
+Try executing this chunk by clicking the *Run* button within the chunk or by placing your cursor inside it and pressing *Ctrl+Shift+Enter*. 
+
+set workdir
+```{r}
+library(rJava)
+library(xlsx)
+library(dplyr)
+library(ggplot2)
+library(leaflet)
+```
+
+```{r}
+setwd('f:/Work/proj/2017/2017-12-21/reegistry_analyser/main/')
+getwd()
+```
+
+
+```{r}
+data_irk = read.xlsx2('data/reestr_irk_.xls', sheetIndex = 1, encoding = 'cp1251')
+dim(data_irk)
+
+```
+
+```{r}
+data_irk$x <- as.double(as.character(data_irk$x))
+data_irk$y <- as.double(as.character(data_irk$y))
+data_irk$N_obj <- as.integer(as.character(data_irk$N_obj))
+```
+
+Add a new chunk by clicking the *Insert Chunk* button on the toolbar or by pressing *Ctrl+Alt+I*.
+
+When you save the notebook, an HTML file containing the code and output will be saved alongside it (click the *Preview* button or press *Ctrl+Shift+K* to preview the HTML file).
+```{r}
+summary(data_irk$AR)
+tAr <- table(data_irk$AR)
+summary(tAr)
+data_irk.df <- split(data_irk, data_irk$vid_dok)
+typeof(data_irk$vid_dok)
+```
+```{r}
+irk_lic_num <- data_irk[data_irk$vid_dok=='Лицензии', c('N_obj')]
+data_irk_with_lic <- data_irk[data_irk$N_obj %in% irk_lic_num,]
+data_irk_not_lic <- data_irk[!(data_irk$N_obj %in% irk_lic_num),]
+data_irk_not_lic <- data_irk_not_lic[data_irk_not_lic$pi %in% unique(data_irk_with_lic$pi),]
+
+types <- c('Лиц', 'Без лиц')
+
+cluster_colors <- list('rgba(0, 255, 68, 0.5)', 'rgba(77,77,77,0.5)')
+names(cluster_colors) <- types
+
+icons_colors <- list("green", "black")
+names(icons_colors) <- types
+icons <- list(0, 0)
+names(icons) <- types
+
+map_data_struct <- list(data_irk_with_lic, data_irk_not_lic)
+names(map_data_struct) <- types
+
+
+for (type in types) {
+  
+  icons[[type]] <- awesomeIcons(
+    icon = 'ios-close',
+    iconColor = 'black',
+    library = 'ion',
+    markerColor = icons_colors[[type]]
+    )
+
+}
+
+
+l <- leaflet() %>% addTiles()
+for (type in types) {
+  icon_type <- icons[[type]]
+  cluster_icon <- sprintf("
+          function(cluster) {
+             return new L.DivIcon({
+               html: '<div style=\"background-color:%s\"><span>' + cluster.getChildCount() + '</div><span>',
+               className: 'marker-cluster'
+             });
+           }
+  ", cluster_colors[[type]])
+  l <- l %>% addAwesomeMarkers(data = map_data_struct[[type]],
+             lng = ~x, lat = ~y,
+             label = ~as.character(paste(name, pi, sep = " :: ")),
+             popup = ~as.character(vid_dok),
+             group = type,
+             icon = icon_type,
+             clusterOptions = markerClusterOptions(removeOutsideVisibleBounds = F, iconCreateFunction =
+                                      JS(cluster_icon)),
+             labelOptions = labelOptions(noHide = F, direction = 'auto'))
+  
+}
+
+l %>%
+  addLayersControl(
+    overlayGroups = types,
+    options = layersControlOptions(collapsed = FALSE)
+  )
+```
+
+```{r}
+irk_lic_pi <- sort(unique(data_irk_with_lic$pi))
+irk_non_lic_pi <- sort(unique(data_irk_not_lic$pi))
+irk_free_pi <- irk_non_lic_pi[!(irk_non_lic_pi %in% irk_lic_pi)]
+```
+
+
+
